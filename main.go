@@ -15,11 +15,11 @@ const (
 	Sender    = "steve.horan@theatsgroup.com"
 	Recipient = "steve.horan@theatsgroup.com"
 	Subject   = "AWS Report"
-	HTMLBody  = "<h1>Testing</h1>"
 	CharSet   = "UTF-8"
 )
 
 func main() {
+	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	sess, err := session.NewSession(&aws.Config{Region: aws.String("us-east-1")})
@@ -36,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	artifacts := make(map[string][]string)
+	//artifacts := make(map[string][]string)
 
 	// Grab the length of the slice of regions and create a WaitGroup for this.
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
@@ -44,10 +44,18 @@ func main() {
 		var is []string
 		fmt.Println(aws.StringValue(region.RegionName))
 		is = getInstances(*region.RegionName)
-
-		artifacts[aws.StringValue(region.RegionName)] = is
+		fmt.Println(len(is))
+		if len(is) != 0 {
+			HTMLBody = HTMLBody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
+			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th>"
+			for _, i := range is {
+				HTMLBody = HTMLBody + "<tr><td>" + i + "</td></tr>"
+			}
+			HTMLBody = HTMLBody + "</table>"
+		}
+		//artifacts[aws.StringValue(region.RegionName)] = is
 	}
-	fmt.Println(artifacts)
+	//fmt.Println(artifacts)
 
 	svc := ses.New(sess)
 	// Assemble the email.
