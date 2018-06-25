@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"time"
 
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,14 +13,20 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses"
 )
 
+type instancestruct struct {
+	Instanceid string
+	Type       string
+	LaunchTime *time.Time
+	State      string
+}
+
 const (
 	Sender    = "steve.horan@theatsgroup.com"
 	Recipient = "steve.horan@theatsgroup.com"
-	Subject   = "AWS Report"
 	CharSet   = "UTF-8"
 )
 
-func main() {
+func Handler() {
 	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -38,18 +46,17 @@ func main() {
 
 	//artifacts := make(map[string][]string)
 
-	// Grab the length of the slice of regions and create a WaitGroup for this.
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
 	for _, region := range resultRegions.Regions {
-		var is []string
+		var is []instancestruct
 		fmt.Println(aws.StringValue(region.RegionName))
 		is = getInstances(*region.RegionName)
 		fmt.Println(len(is))
 		if len(is) != 0 {
 			HTMLBody = HTMLBody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
-			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th>"
+			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th>"
 			for _, i := range is {
-				HTMLBody = HTMLBody + "<tr><td>" + i + "</td></tr>"
+				HTMLBody = HTMLBody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td></tr>"
 			}
 			HTMLBody = HTMLBody + "</table>"
 		}
@@ -57,6 +64,7 @@ func main() {
 	}
 	//fmt.Println(artifacts)
 
+	date := time.Now()
 	svc := ses.New(sess)
 	// Assemble the email.
 	input := &ses.SendEmailInput{
@@ -75,7 +83,7 @@ func main() {
 			},
 			Subject: &ses.Content{
 				Charset: aws.String(CharSet),
-				Data:    aws.String(Subject),
+				Data:    aws.String("AWS Report " + date.Format("01-02")),
 			},
 		},
 		Source: aws.String(Sender),
@@ -109,8 +117,8 @@ func main() {
 	fmt.Println(result)
 }
 
-func getInstances(region string) []string {
-	var is []string
+func getInstances(region string) []instancestruct {
+	var is []instancestruct
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(region),
 	})
@@ -124,9 +132,19 @@ func getInstances(region string) []string {
 	}
 	for _, reserv := range result.Reservations {
 		for _, instances := range reserv.Instances {
-			is = append(is, aws.StringValue(instances.InstanceId))
+			isstruct := instancestruct{
+				aws.StringValue(instances.InstanceId),
+				aws.StringValue(instances.InstanceType),
+				instances.LaunchTime,
+				aws.StringValue(instances.State.Name),
+			}
+			is = append(is, isstruct)
 		}
 	}
 
 	return is
+}
+
+func main() {
+	lambda.Start(Handler)
 }
