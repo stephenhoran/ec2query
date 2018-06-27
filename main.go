@@ -18,11 +18,12 @@ type instancestruct struct {
 	Type       string
 	LaunchTime *time.Time
 	State      string
+	KeyName    string
 }
 
 const (
-	Sender    = "steve.horan@theatsgroup.com"
-	Recipient = "steve.horan@theatsgroup.com"
+	Sender    = "awsadmins@theatsgroup.com"
+	Recipient = "awsadmins@theatsgroup.com"
 	CharSet   = "UTF-8"
 )
 
@@ -54,9 +55,9 @@ func Handler() {
 		fmt.Println(len(is))
 		if len(is) != 0 {
 			HTMLBody = HTMLBody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
-			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th>"
+			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th><th>Key Name</th>"
 			for _, i := range is {
-				HTMLBody = HTMLBody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td></tr>"
+				HTMLBody = HTMLBody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td><td>" + i.KeyName + "</td></tr>"
 			}
 			HTMLBody = HTMLBody + "</table>"
 		}
@@ -137,6 +138,7 @@ func getInstances(region string) []instancestruct {
 				aws.StringValue(instances.InstanceType),
 				instances.LaunchTime,
 				aws.StringValue(instances.State.Name),
+				aws.StringValue(instances.KeyName),
 			}
 			is = append(is, isstruct)
 		}
