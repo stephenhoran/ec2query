@@ -1,0 +1,22 @@
+
+service: ec2query
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 128
+  timeout: 10
+
+package:
+ exclude:
+   - ./**
+ include:
+   - ./main 
+
+functions:
+  ec2query:
+    handler: main
+    name: ec2query-${self:provider.stage}
+    description: Function to send emails for EC2 instances
