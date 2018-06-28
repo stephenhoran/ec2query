@@ -15,6 +15,8 @@ all: build push
 build:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_NAME) -v
 push:
+	export AWS_DEFAULT_REGION=us-east-2
+	zip main.zip main
 	aws lambda update-function-code --function-name ec2query --zip-file fileb://main.zip
 
 # for deploy-dev/undeploy-dev, use: make push AWS_ACCESS_KEY_ID=XXXX AWS_SECRET_ACCESS_KEY=XXX
