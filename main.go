@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
@@ -22,16 +23,14 @@ type instancestruct struct {
 }
 
 const (
-	Sender    = "awsadmins@theatsgroup.com"
-	Recipient = "awsadmins@theatsgroup.com"
-	CharSet   = "UTF-8"
+	CharSet = "UTF-8"
 )
 
 func Handler() {
 	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	sess, err := session.NewSession(&aws.Config{Region: aws.String("us-east-1")})
+	sess, err := session.NewSession(&aws.Config{Region: aws.String(os.Getenv("REGION"))})
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +71,7 @@ func Handler() {
 		Destination: &ses.Destination{
 			CcAddresses: []*string{},
 			ToAddresses: []*string{
-				aws.String(Recipient),
+				aws.String(os.Getenv("RECIPIENT")),
 			},
 		},
 		Message: &ses.Message{
@@ -87,7 +86,7 @@ func Handler() {
 				Data:    aws.String("AWS Report " + date.Format("01-02")),
 			},
 		},
-		Source: aws.String(Sender),
+		Source: aws.String(os.Getenv("SENDER")),
 		// Uncomment to use a configuration set
 		//ConfigurationSetName: aws.String(ConfigurationSet),
 	}

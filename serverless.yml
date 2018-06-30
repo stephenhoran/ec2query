@@ -4,10 +4,25 @@ service: ec2query
 provider:
   name: aws
   runtime: go1.x
-  stage: ${opt:stage, 'dev'}
-  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, "dev"}
+  region: ${opt:region, "us-east-1"}
   memorySize: 128
-  timeout: 10
+  timeout: 20
+  environment:
+    SENDER: '${opt:sender}'
+    RECIPIENT: '${opt:recipient}'
+    REGION: ${self:provider.region}
+  iamRoleStatements: 
+    # create permissions to query ec2
+    - Effect: Allow
+      Action: 
+        - ec2:Describe*
+      Resource: "*"  
+    # create permissions to send email
+    - Effect: Allow
+      Action: 
+        - ses:**
+      Resource: "*" 
 
 package:
  exclude:
