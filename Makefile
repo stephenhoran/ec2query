@@ -30,7 +30,9 @@ create_serverless_container:
 
 # use "make deploy AWS_ACCESS_KEY_ID=XXXX AWS_SECRET_ACCESS_KEY=XXX STAGE=dev REGION=us-east-1 SENDER=sender@example.com RECIPIENT=recipient@example.com"
 # or if you've set the parameters as environment variables, simply use "make deploy"
+# If you have the AWS shared credentials configured, those environment variables will be set for you.
 deploy: build create_serverless_container
+	eval $(go run $(PWD)/tools/awsconfig/main.go)
 	docker run -it --rm -v $(PWD):/app -e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) -e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) $(BUILD_IMAGE) serverless deploy --stage=$(STAGE) --region=$(REGION) --sender=$(SENDER) --recipient=$(RECIPIENT) -v
 undeploy: build create_serverless_container
 	docker run -it --rm -v $(PWD):/app -e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) -e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) $(BUILD_IMAGE) serverless remove --stage=$(STAGE) --region=$(REGION) -v
@@ -45,5 +47,6 @@ deps:
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 
 
