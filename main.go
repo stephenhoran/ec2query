@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/atssteve/ec2query/apis"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -20,7 +21,7 @@ const (
 )
 
 // Main used by the lambda
-func main() {
+func Handle() {
 	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -109,4 +110,8 @@ func main() {
 	}
 
 	fmt.Println(result)
+}
+
+func main() {
+	lambda.Start(Handle)
 }
