@@ -25,6 +25,9 @@ push:
 	zip main.zip main
 	aws lambda update-function-code --function-name ec2query --zip-file fileb://main.zip
 
+invoke:
+	aws lambda invoke --function-name ec2query outfile.txt
+	
 create_serverless_container:
 	docker build -t $(BUILD_IMAGE) .
 

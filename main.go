@@ -20,7 +20,7 @@ const (
 	CharSet = "UTF-8"
 )
 
-// Main used by the lambda
+// Handle used by the lambda
 func Handle() {
 	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -34,29 +34,10 @@ func Handle() {
 	ec2session := ec2.New(sess)
 
 	// Describe all of the regions in AWS. Returns a type *DescribeRegionsOutput.
-	resultRegions, err := ec2session.DescribeRegions(nil)
-	if err != nil {
-		panic(err)
-	}
+	resultRegions := apis.GetRegions(ec2session)
 
-	//artifacts := make(map[string][]string)
+	apis.GetInstances(resultRegions, &HTMLBody)
 
-	// Iterate over our list of regions and use aws.StringValue to print the region name.
-	for _, region := range resultRegions.Regions {
-		var is []apis.Ec2instance
-		fmt.Println(aws.StringValue(region.RegionName))
-		is = apis.GetInstances(*region.RegionName)
-		fmt.Println(len(is))
-		if len(is) != 0 {
-			HTMLBody = HTMLBody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
-			HTMLBody = HTMLBody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th><th>Key Name</th>"
-			for _, i := range is {
-				HTMLBody = HTMLBody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td><td>" + i.KeyName + "</td></tr>"
-			}
-			HTMLBody = HTMLBody + "</table>"
-		}
-		//artifacts[aws.StringValue(region.RegionName)] = is
-	}
 	//fmt.Println(artifacts)
 
 	date := time.Now()
