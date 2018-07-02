@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/atssteve/ec2query/apis"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,19 +14,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses"
 )
 
-type instancestruct struct {
-	Instanceid string
-	Type       string
-	LaunchTime *time.Time
-	State      string
-	KeyName    string
-}
-
 const (
+	// CharSet for SES email
 	CharSet = "UTF-8"
 )
 
-func Handler() {
+// Main used by the lambda
+func main() {
 	var HTMLBody string
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -48,9 +42,9 @@ func Handler() {
 
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
 	for _, region := range resultRegions.Regions {
-		var is []instancestruct
+		var is []apis.Ec2instance
 		fmt.Println(aws.StringValue(region.RegionName))
-		is = getInstances(*region.RegionName)
+		is = apis.GetInstances(*region.RegionName)
 		fmt.Println(len(is))
 		if len(is) != 0 {
 			HTMLBody = HTMLBody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
@@ -115,37 +109,4 @@ func Handler() {
 	}
 
 	fmt.Println(result)
-}
-
-func getInstances(region string) []instancestruct {
-	var is []instancestruct
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
-		panic(err)
-	}
-	ec2svc := ec2.New(sess)
-	result, err := ec2svc.DescribeInstances(nil)
-	if err != nil {
-		panic(err)
-	}
-	for _, reserv := range result.Reservations {
-		for _, instances := range reserv.Instances {
-			isstruct := instancestruct{
-				aws.StringValue(instances.InstanceId),
-				aws.StringValue(instances.InstanceType),
-				instances.LaunchTime,
-				aws.StringValue(instances.State.Name),
-				aws.StringValue(instances.KeyName),
-			}
-			is = append(is, isstruct)
-		}
-	}
-
-	return is
-}
-
-func main() {
-	lambda.Start(Handler)
 }
