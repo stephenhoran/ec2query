@@ -27,6 +27,7 @@ func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) 
 	defer close(c)
 	for _, region := range regions.Regions {
 		go func() {
+			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
 			queryInstances(aws.StringValue(region.RegionName), c)
 		}()
 	}
@@ -37,7 +38,7 @@ func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) 
 
 // GetInstances returns a list of Ec2instance structs that are currently running
 func queryInstances(regionName string, c chan<- Ec2instance) {
-	fmt.Println(regionName)
+	fmt.Println("Query Instance: " + regionName)
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(regionName),
 	})
