@@ -16,52 +16,60 @@ type Ec2instance struct {
 	LaunchTime *time.Time
 	State      string
 	KeyName    string
+	Region     string
 }
 
-func GetInstances(regions *ec2.DescribeRegionsOutput, htmlbody *string) {
+// GetInstances takes a pointer to a DescribeRegionsOutput as will as a pointer to a string
+// to query all of the instances in a region and build on our Ec2instance struct
+func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
+	c := make(chan string)
 	for _, region := range regions.Regions {
-		var is []Ec2instance
-		fmt.Println(aws.StringValue(region.RegionName))
-		is = queryInstances(*region.RegionName)
-		fmt.Println(len(is))
-		if len(is) != 0 {
-			*htmlbody = *htmlbody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
-			*htmlbody = *htmlbody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th><th>Key Name</th>"
-			for _, i := range is {
-				*htmlbody = *htmlbody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td><td>" + i.KeyName + "</td></tr>"
-			}
-			*htmlbody = *htmlbody + "</table>"
-		}
+		go func() {
+			fmt.Println(aws.StringValue(region.RegionName))
+			c <- aws.StringValue(region.RegionName)
+			queryInstances(c)
+		}()
+		close(c)
+	}
+
+	for n := range queryInstances(c) {
+		fmt.Println(n)
 	}
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
-func queryInstances(region string) []Ec2instance {
-	var is []Ec2instance
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
-		panic(err)
-	}
-	ec2svc := ec2.New(sess)
-	result, err := ec2svc.DescribeInstances(nil)
-	if err != nil {
-		panic(err)
-	}
-	for _, reserv := range result.Reservations {
-		for _, instances := range reserv.Instances {
-			isstruct := Ec2instance{
-				Instanceid: aws.StringValue(instances.InstanceId),
-				Type:       aws.StringValue(instances.InstanceType),
-				LaunchTime: instances.LaunchTime,
-				State:      aws.StringValue(instances.State.Name),
-				KeyName:    aws.StringValue(instances.KeyName),
+func queryInstances(c <-chan string) <-chan Ec2instance {
+	out := make(chan Ec2instance)
+	go func() {
+		for regionName := range c {
+			fmt.Println(regionName)
+			sess, err := session.NewSession(&aws.Config{
+				Region: aws.String(regionName),
+			})
+			if err != nil {
+				panic(err)
 			}
-			is = append(is, isstruct)
+			ec2svc := ec2.New(sess)
+			result, err := ec2svc.DescribeInstances(nil)
+			if err != nil {
+				panic(err)
+			}
+			for _, reserv := range result.Reservations {
+				for _, instances := range reserv.Instances {
+					isstruct := Ec2instance{
+						Instanceid: aws.StringValue(instances.InstanceId),
+						Type:       aws.StringValue(instances.InstanceType),
+						LaunchTime: instances.LaunchTime,
+						State:      aws.StringValue(instances.State.Name),
+						KeyName:    aws.StringValue(instances.KeyName),
+						Region:     aws.StringValue(&regionName),
+					}
+					out <- isstruct
+				}
+			}
 		}
-	}
-
-	return is
+		close(out)
+	}()
+	return out
 }
