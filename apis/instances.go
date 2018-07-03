@@ -2,6 +2,7 @@ package apis
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,26 +20,30 @@ type Ec2instance struct {
 	Region     string
 }
 
+var wg sync.WaitGroup
+var mutex sync.Mutex
+var instancesslice *[]Ec2instance
+
 // GetInstances takes a pointer to a DescribeRegionsOutput as will as a pointer to a string
 // to query all of the instances in a region and build on our Ec2instance struct
-func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) {
+func GetInstances(regions *ec2.DescribeRegionsOutput, instance *[]Ec2instance) {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
-	c := make(chan Ec2instance)
+	instancesslice = instance
+	wg.Add(len(regions.Regions))
 	for _, region := range regions.Regions {
 		go func(region *ec2.Region) {
 			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
-			queryInstances(aws.StringValue(region.RegionName), c)
+			queryInstances(aws.StringValue(region.RegionName))
 		}(region)
 	}
-	for n := range c {
-		fmt.Println(n)
-	}
 
-	close(c)
+	wg.Wait()
+
+	fmt.Println(instancesslice)
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
-func queryInstances(regionName string, c chan<- Ec2instance) {
+func queryInstances(regionName string) {
 	fmt.Println("Query Instance: " + regionName)
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(regionName),
@@ -61,7 +66,9 @@ func queryInstances(regionName string, c chan<- Ec2instance) {
 				KeyName:    aws.StringValue(instances.KeyName),
 				Region:     aws.StringValue(&regionName),
 			}
-			c <- isstruct
+			mutex.Lock()
+			*instancesslice = append(*instancesslice, isstruct)
+			mutex.Unlock()
 		}
 	}
 }
