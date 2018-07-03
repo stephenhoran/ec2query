@@ -2,6 +2,7 @@ package apis
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -18,33 +19,52 @@ type Ec2instance struct {
 	KeyName    string
 }
 
-func GetInstances(regions *ec2.DescribeRegionsOutput, htmlbody *string) {
+// APIMap stores the Region name are the key and a slice of Ec2Instance structs for use later
+type APIMap map[string][]Ec2instance
+
+var wg sync.WaitGroup
+var mutex sync.Mutex
+var instanceresult []APIMap
+
+// GetInstances takes a pointer to a DescribeRegionsOutput to query all of the instances in a region and build on our Ec2instance struct
+// The Ec2instance structs will be stored as a slice in a map to organized in fashion that can easily we looped over.GetInstances
+//
+// Example:
+// map[us-east-1:[{i-030b2417f941cdbbf t2.micro 2018-06-28 17:11:20 +0000 UTC stopped aw-mac us-east-1}]]
+func GetInstances(regions *ec2.DescribeRegionsOutput) []APIMap {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
+	fmt.Printf("Setting waitgroup count to: %d\n", len(regions.Regions)-1)
+	wg.Add(len(regions.Regions))
 	for _, region := range regions.Regions {
-		var is []Ec2instance
-		fmt.Println(aws.StringValue(region.RegionName))
-		is = queryInstances(*region.RegionName)
-		fmt.Println(len(is))
-		if len(is) != 0 {
-			*htmlbody = *htmlbody + "<h1>" + aws.StringValue(region.RegionName) + "</h1>"
-			*htmlbody = *htmlbody + "<table border=\"1\"><th>Instance Names</th><th>Type</th><th>state</th><th>Launch Time</th><th>Key Name</th>"
-			for _, i := range is {
-				*htmlbody = *htmlbody + "<tr><td>" + i.Instanceid + "</td><td>" + i.Type + "</td><td>" + i.State + "</td><td>" + i.LaunchTime.Format("2006-01-02 15:04:05") + "</td><td>" + i.KeyName + "</td></tr>"
-			}
-			*htmlbody = *htmlbody + "</table>"
-		}
+		go func(region *ec2.Region) {
+			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
+			m := queryInstances(aws.StringValue(region.RegionName))
+
+			mutex.Lock()
+			instanceresult = append(instanceresult, m)
+			mutex.Unlock()
+		}(region)
 	}
+
+	wg.Wait()
+
+	return instanceresult
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
-func queryInstances(region string) []Ec2instance {
-	var is []Ec2instance
+func queryInstances(regionName string) APIMap {
+	defer wg.Done()
+	fmt.Println("Query Instance: " + regionName)
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
+		Region: aws.String(regionName),
 	})
 	if err != nil {
 		panic(err)
 	}
+
+	ec2map := make(APIMap)
+	var ec2slice []Ec2instance
+
 	ec2svc := ec2.New(sess)
 	result, err := ec2svc.DescribeInstances(nil)
 	if err != nil {
@@ -59,9 +79,12 @@ func queryInstances(region string) []Ec2instance {
 				State:      aws.StringValue(instances.State.Name),
 				KeyName:    aws.StringValue(instances.KeyName),
 			}
-			is = append(is, isstruct)
+			ec2slice = append(ec2slice, isstruct)
+
 		}
 	}
 
-	return is
+	ec2map[regionName] = ec2slice
+
+	return ec2map
 }
