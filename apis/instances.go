@@ -40,6 +40,7 @@ func GetInstances(regions *ec2.DescribeRegionsOutput) []APIMap {
 			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
 			m := queryInstances(aws.StringValue(region.RegionName))
 
+			// mutex lock on slice of structs required to keep this type thread safe.
 			mutex.Lock()
 			instanceresult = append(instanceresult, m)
 			mutex.Unlock()

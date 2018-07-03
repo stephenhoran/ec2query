@@ -7,6 +7,7 @@ import (
 	"github.com/atssteve/ec2query/apis"
 )
 
+// Email Templating done here.
 var tmpl = `
 <body>
 {{range .}}
@@ -28,6 +29,8 @@ var tmpl = `
 var htmlbody bytes.Buffer
 
 //BuildInstanceTemplate takes an Instance API Map using text templates build HTML email body
+//
+// Using a bytes buffer as it implements the writer interface requires for the template execution. Make sure to convert back to string.
 func BuildInstanceTemplate(instances []apis.APIMap) string {
 	t := template.New("email")
 	t, _ = t.Parse(tmpl)
