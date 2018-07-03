@@ -27,7 +27,7 @@ push:
 
 invoke:
 	aws lambda invoke --function-name ec2query outfile.txt
-	
+
 create_serverless_container:
 	docker build -t $(BUILD_IMAGE) .
 
@@ -44,12 +44,12 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -f $(ZIP_NAME)
 deps:
-	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	go get -v github.com/aws/aws-lambda-go/lambda
+	go get -v github.com/aws/aws-sdk-go/aws
+	go get -v github.com/aws/aws-sdk-go/aws/awserr
+	go get -v github.com/aws/aws-sdk-go/aws/session
+	go get -v github.com/aws/aws-sdk-go/service/ec2
+	go get -v github.com/aws/aws-sdk-go/service/ses
+	go get -v github.com/aws/aws-sdk-go/aws/credentials
 
 

@@ -23,53 +23,45 @@ type Ec2instance struct {
 // to query all of the instances in a region and build on our Ec2instance struct
 func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
-	c := make(chan string)
+	c := make(chan Ec2instance)
+	defer close(c)
 	for _, region := range regions.Regions {
 		go func() {
 			fmt.Println(aws.StringValue(region.RegionName))
-			c <- aws.StringValue(region.RegionName)
-			queryInstances(c)
+			queryInstances(aws.StringValue(region.RegionName), c)
 		}()
-		close(c)
 	}
 
-	for n := range queryInstances(c) {
+	for n := range c {
 		fmt.Println(n)
 	}
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
-func queryInstances(c <-chan string) <-chan Ec2instance {
-	out := make(chan Ec2instance)
-	go func() {
-		for regionName := range c {
-			fmt.Println(regionName)
-			sess, err := session.NewSession(&aws.Config{
-				Region: aws.String(regionName),
-			})
-			if err != nil {
-				panic(err)
+func queryInstances(regionName string, c chan<- Ec2instance) {
+	fmt.Println(regionName)
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(regionName),
+	})
+	if err != nil {
+		panic(err)
+	}
+	ec2svc := ec2.New(sess)
+	result, err := ec2svc.DescribeInstances(nil)
+	if err != nil {
+		panic(err)
+	}
+	for _, reserv := range result.Reservations {
+		for _, instances := range reserv.Instances {
+			isstruct := Ec2instance{
+				Instanceid: aws.StringValue(instances.InstanceId),
+				Type:       aws.StringValue(instances.InstanceType),
+				LaunchTime: instances.LaunchTime,
+				State:      aws.StringValue(instances.State.Name),
+				KeyName:    aws.StringValue(instances.KeyName),
+				Region:     aws.StringValue(&regionName),
 			}
-			ec2svc := ec2.New(sess)
-			result, err := ec2svc.DescribeInstances(nil)
-			if err != nil {
-				panic(err)
-			}
-			for _, reserv := range result.Reservations {
-				for _, instances := range reserv.Instances {
-					isstruct := Ec2instance{
-						Instanceid: aws.StringValue(instances.InstanceId),
-						Type:       aws.StringValue(instances.InstanceType),
-						LaunchTime: instances.LaunchTime,
-						State:      aws.StringValue(instances.State.Name),
-						KeyName:    aws.StringValue(instances.KeyName),
-						Region:     aws.StringValue(&regionName),
-					}
-					out <- isstruct
-				}
-			}
+			c <- isstruct
 		}
-		close(out)
-	}()
-	return out
+	}
 }
