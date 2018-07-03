@@ -29,11 +29,9 @@ func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) 
 		go func() {
 			queryInstances(aws.StringValue(region.RegionName), c)
 		}()
-		go func() {
-			for n := range c {
-				fmt.Println(n)
-			}
-		}()
+	}
+	for {
+		fmt.Println(<-c)
 	}
 }
 
