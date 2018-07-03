@@ -29,12 +29,12 @@ func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) 
 		go func() {
 			queryInstances(aws.StringValue(region.RegionName), c)
 		}()
+		go func() {
+			for n := range c {
+				fmt.Println(n)
+			}
+		}()
 	}
-	go func() {
-		for n := range c {
-			fmt.Println(n)
-		}
-	}()
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
