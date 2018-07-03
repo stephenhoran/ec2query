@@ -6,6 +6,7 @@ import (
 
 	"github.com/atssteve/ec2query/apis"
 	"github.com/atssteve/ec2query/email"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -37,5 +38,5 @@ func Handle() {
 }
 
 func main() {
-	Handle()
+	lambda.Start(Handle)
 }
