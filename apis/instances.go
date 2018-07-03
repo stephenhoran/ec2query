@@ -27,7 +27,6 @@ func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) 
 	defer close(c)
 	for _, region := range regions.Regions {
 		go func() {
-			fmt.Println(aws.StringValue(region.RegionName))
 			queryInstances(aws.StringValue(region.RegionName), c)
 		}()
 	}
