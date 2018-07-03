@@ -24,16 +24,17 @@ type Ec2instance struct {
 func GetInstances(regions *ec2.DescribeRegionsOutput, instances *[]Ec2instance) {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
 	c := make(chan Ec2instance, 20)
-	defer close(c)
 	for _, region := range regions.Regions {
-		go func() {
+		go func(region *ec2.Region) {
 			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
 			queryInstances(aws.StringValue(region.RegionName), c)
-		}()
+		}(region)
 	}
 	for range c {
 		fmt.Println(c)
 	}
+
+	close(c)
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
