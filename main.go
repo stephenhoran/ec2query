@@ -27,7 +27,7 @@ func Handle() {
 	// Describe all of the regions in AWS. Returns a type *DescribeRegionsOutput.
 	resultRegions := apis.GetRegions(ec2session)
 
-	// Query all regions for all instance types and and recieve a slice of maps for that region.
+	// Query all regions for all instance types and and receive a slice of maps for that region.
 	resultInstances := apis.GetInstances(resultRegions)
 
 	// Build the HTML body of the email.
