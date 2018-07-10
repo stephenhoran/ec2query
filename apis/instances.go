@@ -33,7 +33,9 @@ func GetInstances(regions *ec2.DescribeRegionsOutput) []APIMap {
 	for _, region := range regions.Regions {
 		go func(region *ec2.Region) {
 			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
+      
 			ch <- queryInstances(aws.StringValue(region.RegionName))
+
 		}(region)
 	}
 
