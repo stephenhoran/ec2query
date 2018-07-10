@@ -43,6 +43,7 @@ undeploy: build create_serverless_container
 clean:
 	rm -f $(BINARY_NAME)
 	rm -f $(ZIP_NAME)
+
 deps:
 	go get -v github.com/aws/aws-lambda-go/lambda
 	go get -v github.com/aws/aws-sdk-go/aws
@@ -52,4 +53,14 @@ deps:
 	go get -v github.com/aws/aws-sdk-go/service/ses
 	go get -v github.com/aws/aws-sdk-go/aws/credentials
 
+test-deps:
+	go get -v -t -d ./...
 
+clean-testcache:
+	go clean -testcache github.com/atssteve/ec2query/
+
+test: test-deps	clean-testcache
+	go test ./... -race -covermode=atomic
+
+test-circleci: test-deps
+	go test -race -covermode=atomic -coverprofile=coverage.txt ./...

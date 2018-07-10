@@ -1,3 +1,7 @@
+[![CircleCI](https://circleci.com/gh/atssteve/ec2query.svg?style=svg)](https://circleci.com/gh/atssteve/ec2query)
+[![codecov](https://codecov.io/gh/atssteve/ec2query/branch/master/graph/badge.svg)](https://codecov.io/gh/atssteve/ec2query)
+[![Go Report Card](https://goreportcard.com/badge/github.com/atssteve/ec2query)](https://goreportcard.com/report/github.com/atssteve/ec2query)
+
 # EC2Query Lambda
 This lambda will simply query all regions in AWS and email the recipient a list of what is running.
 

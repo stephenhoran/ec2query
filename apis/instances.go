@@ -2,7 +2,6 @@ package apis
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -22,10 +21,6 @@ type Ec2instance struct {
 // APIMap stores the Region name are the key and a slice of Ec2Instance structs for use later
 type APIMap map[string][]Ec2instance
 
-var wg sync.WaitGroup
-var mutex sync.Mutex
-var instanceresult []APIMap
-
 // GetInstances takes a pointer to a DescribeRegionsOutput to query all of the instances in a region and build on our Ec2instance struct
 // The Ec2instance structs will be stored as a slice in a map to organized in fashion that can easily we looped over.GetInstances
 //
@@ -33,28 +28,34 @@ var instanceresult []APIMap
 // map[us-east-1:[{i-030b2417f941cdbbf t2.micro 2018-06-28 17:11:20 +0000 UTC stopped aw-mac us-east-1}]]
 func GetInstances(regions *ec2.DescribeRegionsOutput) []APIMap {
 	// Iterate over our list of regions and use aws.StringValue to print the region name.
-	fmt.Printf("Setting waitgroup count to: %d\n", len(regions.Regions)-1)
-	wg.Add(len(regions.Regions))
+	fmt.Printf("Region count is: %d\n", len(regions.Regions))
+	ch := make(chan APIMap, len(regions.Regions))
 	for _, region := range regions.Regions {
 		go func(region *ec2.Region) {
 			fmt.Println("Starting new go function with region: " + aws.StringValue(region.RegionName))
-			m := queryInstances(aws.StringValue(region.RegionName))
+      
+			ch <- queryInstances(aws.StringValue(region.RegionName))
 
-			// mutex lock on slice of structs required to keep this type thread safe.
-			mutex.Lock()
-			instanceresult = append(instanceresult, m)
-			mutex.Unlock()
 		}(region)
 	}
 
-	wg.Wait()
+	var instanceresult []APIMap
+	for i:= 0; i < cap(ch); i++ {
+		select {
+		case r := <-ch:
+			instanceresult = append(instanceresult, r)
+		// timeout all go routines after 5 seconds to avoid hanging
+		case <-time.After(10 * time.Second):
+			fmt.Println("Timed out waiting for results")
+			i = cap(ch) 
+		}
+	}	
 
 	return instanceresult
 }
 
 // GetInstances returns a list of Ec2instance structs that are currently running
 func queryInstances(regionName string) APIMap {
-	defer wg.Done()
 	fmt.Println("Query Instance: " + regionName)
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(regionName),
