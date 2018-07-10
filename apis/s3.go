@@ -10,15 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-type s3Bucket struct {
+// S3Bucket for struct type containing information about S3 buckets
+type S3Bucket struct {
 	Name     string
 	Location string
-	Size     int64
+	Size     string
 }
 
-var s3slice []s3Bucket
+var s3slice []S3Bucket
+var s3sliceComplete []S3Bucket
 
-func GetS3Buckets() {
+// GetS3Buckets function used to grab a list of S3 buckets and their sizes
+func GetS3Buckets() []S3Bucket {
 	sess, err := session.NewSession(&aws.Config{Region: aws.String(os.Getenv("REGION"))})
 	if err != nil {
 		panic(err)
@@ -36,16 +39,16 @@ func GetS3Buckets() {
 		if err != nil {
 			panic(err)
 		}
-		s3slice = append(s3slice, s3Bucket{
+		s3slice = append(s3slice, S3Bucket{
 			Name:     aws.StringValue(b.Name),
 			Location: aws.StringValue(resp.LocationConstraint),
 		})
 	}
 
-	c := make(chan s3Bucket)
+	c := make(chan S3Bucket)
 
 	for _, i := range s3slice {
-		go func(i s3Bucket) {
+		go func(i S3Bucket) {
 			var sess *session.Session
 			var size int64
 			if i.Location != "" {
@@ -63,14 +66,20 @@ func GetS3Buckets() {
 			for _, item := range res.Contents {
 				size += aws.Int64Value(item.Size)
 			}
-
-			i.Size = size
+			fsize := float64(size)
+			i.Size = fmt.Sprintf("%6.2f MiB", (fsize / 1024 / 1024))
 			c <- i
 		}(i)
 	}
 
 	for n := 0; n < len(s3slice); n++ {
-		fmt.Println(<-c)
+		s3sliceComplete = append(s3sliceComplete, <-c)
 	}
+
+	fmt.Println(s3sliceComplete)
+
+	close(c)
+
+	return s3sliceComplete
 
 }
