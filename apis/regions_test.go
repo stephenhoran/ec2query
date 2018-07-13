@@ -1,9 +1,15 @@
 package apis
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,12 +17,12 @@ import (
 type describeRegionerMock struct {
 	// this function field allows you to easily mock methods per test
 	// https://medium.com/@matryer/meet-moq-easily-mock-interfaces-in-go-476444187d10
-	DescribeRegionsFunc func(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error)
+	DescribeRegionsFunc func(aws.Context, *ec2.DescribeRegionsInput, ...request.Option) (*ec2.DescribeRegionsOutput, error)
 }
 
-func (mock describeRegionerMock) DescribeRegions(input *ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+func (mock describeRegionerMock) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, req ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 	// call the mocked function field here
-	return mock.DescribeRegionsFunc(input)
+	return mock.DescribeRegionsFunc(ctx, input, req...)
 }
 
 func Test_GetRegions(t *testing.T) {
@@ -24,9 +30,12 @@ func Test_GetRegions(t *testing.T) {
 	regionName = "regionName"
 	endpoint = "endpoint"
 	errorText := "someError"
+	cancelText := "request cancelled"
 	tests := map[string]struct {
 		dr                   DescribeRegioner
 		drInput              *ec2.DescribeRegionsInput
+		ctx                  context.Context
+		timeout              int
 		drOutputResponse     *ec2.DescribeRegionsOutput
 		errorResponse        error
 		regionName, endpoint string
@@ -34,7 +43,7 @@ func Test_GetRegions(t *testing.T) {
 		"success": {
 			dr: describeRegionerMock{
 				// implement the function field
-				DescribeRegionsFunc: func(input *ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+				DescribeRegionsFunc: func(ctx aws.Context, input *ec2.DescribeRegionsInput, req ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 					return &ec2.DescribeRegionsOutput{
 						Regions: []*ec2.Region{
 							{
@@ -46,6 +55,8 @@ func Test_GetRegions(t *testing.T) {
 				},
 			},
 			drInput: nil,
+			timeout: 100,
+			ctx:     context.Background(),
 			drOutputResponse: &ec2.DescribeRegionsOutput{
 				Regions: []*ec2.Region{
 					{
@@ -56,13 +67,39 @@ func Test_GetRegions(t *testing.T) {
 			},
 			errorResponse: nil,
 		},
+		"cancel": {
+			dr: describeRegionerMock{
+				DescribeRegionsFunc: func(ctx aws.Context, input *ec2.DescribeRegionsInput, req ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+					select {
+					case <-ctx.Done():
+						return nil, awserr.New(request.CanceledErrorCode, cancelText, nil)
+					default:
+						return &ec2.DescribeRegionsOutput{
+							Regions: []*ec2.Region{
+								{
+									Endpoint:   &endpoint,
+									RegionName: &regionName,
+								},
+							},
+						}, nil
+					}
+				},
+			},
+			drInput:          nil,
+			timeout:          0,
+			ctx:              context.Background(),
+			drOutputResponse: &ec2.DescribeRegionsOutput{},
+			errorResponse:    errors.New(cancelText),
+		},
 		"panic": {
 			dr: describeRegionerMock{
-				DescribeRegionsFunc: func(input *ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+				DescribeRegionsFunc: func(ctx aws.Context, input *ec2.DescribeRegionsInput, req ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 					return &ec2.DescribeRegionsOutput{}, errors.New(errorText)
 				},
 			},
 			drInput:          nil,
+			timeout:          100,
+			ctx:              context.Background(),
 			drOutputResponse: &ec2.DescribeRegionsOutput{},
 			errorResponse:    errors.New(errorText),
 		},
@@ -70,11 +107,15 @@ func Test_GetRegions(t *testing.T) {
 
 	for name, test := range tests {
 		t.Logf("Running test case: %s", name)
-		if name != "panic" {
-			response := GetRegions(test.dr)
-			assert.Equal(t, test.drOutputResponse, response)
+		ctx, cancel := context.WithTimeout(test.ctx, 0*time.Second)
+		defer cancel()
+		if name == "cancel" || name == "panic" {
+			assert.Panics(t, func() { GetRegions(ctx, test.dr) }, test.errorResponse.Error())
 		} else {
-			assert.Panics(t, func() { GetRegions(test.dr) }, test.errorResponse.Error())
+			ctx, cancelFn := context.WithTimeout(test.ctx, time.Duration(test.timeout)*time.Second)
+			defer cancelFn()
+			response := GetRegions(ctx, test.dr)
+			assert.Equal(t, test.drOutputResponse, response)
 		}
 	}
 }

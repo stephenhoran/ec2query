@@ -22,7 +22,13 @@ provider:
     - Effect: Allow
       Action: 
         - ses:**
-      Resource: "*" 
+      Resource: "*"
+    # create permissions to read S3 buckets
+    - Effect: Allow
+      Action:
+        - s3:Get*
+        - s3:List*
+      Resource: "*"
 
 package:
  exclude:
