@@ -60,7 +60,7 @@ clean-testcache:
 	go clean -testcache github.com/atssteve/ec2query/
 
 test: test-deps	clean-testcache
-	go test ./... -race -covermode=atomic
+	go test -v ./... -race -covermode=atomic
 
 test-circleci: test-deps
 	go test -race -covermode=atomic -coverprofile=coverage.txt ./...

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"runtime"
 
@@ -14,6 +15,9 @@ import (
 
 // Handle used by the lambda
 func Handle() {
+
+	ctx := context.Background()
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	data := make(map[string]interface{})
@@ -27,7 +31,7 @@ func Handle() {
 	ec2session := ec2.New(sess)
 
 	// // Describe all of the regions in AWS. Returns a type *DescribeRegionsOutput.
-	resultRegions := apis.GetRegions(ec2session)
+	resultRegions := apis.GetRegions(ctx, ec2session)
 
 	// // Query all regions for all instance types and and recieve a slice of maps for that region.
 	data["instances"] = apis.GetInstances(resultRegions)
